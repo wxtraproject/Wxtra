@@ -24,7 +24,7 @@ jobs:
       - name: Gradle kur
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: "8.9"
 
       - name: ZIP'i aç
         run: |
@@ -34,8 +34,6 @@ jobs:
       - name: Gradle projesini bul
         shell: bash
         run: |
-          echo "Android proje aranıyor..."
-
           PROJECT_DIR=$(find project -type f -name "settings.gradle" -print -quit)
 
           if [ -z "$PROJECT_DIR" ]; then
@@ -43,15 +41,13 @@ jobs:
           fi
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "HATA: ZIP içinde settings.gradle bulunamadı!"
-            echo "ZIP içeriği:"
-            find project -maxdepth 5 -type f | sort
+            echo "HATA: settings.gradle bulunamadı!"
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$PROJECT_DIR")
 
-          echo "Bulunan proje: $PROJECT_DIR"
+          echo "Gradle proje klasörü: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: APK oluştur
