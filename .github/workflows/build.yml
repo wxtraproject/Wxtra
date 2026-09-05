@@ -1,16 +1,14 @@
-name: WXTRA Android APK
+name: WXTRA APK
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
       - master
 
-  workflow_dispatch:
-
 jobs:
   build:
-    name: Build WXTRA APK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,24 +21,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Gradle Cache
-        uses: actions/cache@v4
+      - name: Gradle kur
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Gradle izinlerini ayarla
-        run: chmod +x gradlew
+          gradle-version: '8.7'
 
       - name: APK oluştur
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: APK'yı yükle
         uses: actions/upload-artifact@v4
         with:
-          name: WXTRA-debug-APK
+          name: WXTRA-APK
           path: app/build/outputs/apk/debug/*.apk
