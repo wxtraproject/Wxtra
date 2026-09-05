@@ -8,7 +8,7 @@ on:
       - master
 
 jobs:
-  build:
+  APK:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,18 +19,39 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Gradle kur
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: "8.7"
+
+      - name: Gradle projesini bul
+        id: find_project
+        shell: bash
+        run: |
+          PROJECT_DIR=$(find . -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            -not -path "./.git/*" \
+            -print -quit | xargs dirname)
+
+          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "." ]; then
+            PROJECT_DIR="."
+          fi
+
+          echo "Gradle proje klasörü: $PROJECT_DIR"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+          echo "İçerik:"
+          ls -la "$PROJECT_DIR"
 
       - name: APK oluştur
-        run: gradle assembleDebug --stacktrace
+        working-directory: ${{ steps.find_project.outputs.project_dir }}
+        run: |
+          gradle assembleDebug --stacktrace
 
       - name: APK'yı yükle
         uses: actions/upload-artifact@v4
         with:
           name: WXTRA-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/app/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error
