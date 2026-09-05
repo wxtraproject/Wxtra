@@ -27,26 +27,37 @@ jobs:
           gradle-version: "8.7"
 
       - name: Gradle projesini bul
-        id: find_project
         shell: bash
         run: |
-          PROJECT_DIR=$(find . -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
-            -not -path "./.git/*" \
-            -print -quit | xargs dirname)
+          echo "GitHub proje içeriği:"
+          find . -maxdepth 4 -type f | sort
 
-          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "." ]; then
-            PROJECT_DIR="."
+          PROJECT_DIR=""
+
+          for FILE in $(find . -type f -name "settings.gradle" -print); do
+            PROJECT_DIR=$(dirname "$FILE")
+            break
+          done
+
+          if [ -z "$PROJECT_DIR" ]; then
+            for FILE in $(find . -type f -name "settings.gradle.kts" -print); do
+              PROJECT_DIR=$(dirname "$FILE")
+              break
+            done
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "HATA: settings.gradle bulunamadı!"
+            exit 1
           fi
 
           echo "Gradle proje klasörü: $PROJECT_DIR"
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-
-          echo "İçerik:"
-          ls -la "$PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: APK oluştur
-        working-directory: ${{ steps.find_project.outputs.project_dir }}
+        shell: bash
         run: |
+          cd "$PROJECT_DIR"
           gradle assembleDebug --stacktrace
 
       - name: APK'yı yükle
