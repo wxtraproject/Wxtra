@@ -26,36 +26,35 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: ZIP'i aç
+        run: |
+          mkdir project
+          unzip -q wxtra.zip -d project
+
       - name: Gradle projesini bul
         shell: bash
         run: |
-          echo "GitHub proje içeriği:"
-          find . -maxdepth 4 -type f | sort
+          echo "Android proje aranıyor..."
 
-          PROJECT_DIR=""
-
-          for FILE in $(find . -type f -name "settings.gradle" -print); do
-            PROJECT_DIR=$(dirname "$FILE")
-            break
-          done
+          PROJECT_DIR=$(find project -type f -name "settings.gradle" -print -quit)
 
           if [ -z "$PROJECT_DIR" ]; then
-            for FILE in $(find . -type f -name "settings.gradle.kts" -print); do
-              PROJECT_DIR=$(dirname "$FILE")
-              break
-            done
+            PROJECT_DIR=$(find project -type f -name "settings.gradle.kts" -print -quit)
           fi
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "HATA: settings.gradle bulunamadı!"
+            echo "HATA: ZIP içinde settings.gradle bulunamadı!"
+            echo "ZIP içeriği:"
+            find project -maxdepth 5 -type f | sort
             exit 1
           fi
 
-          echo "Gradle proje klasörü: $PROJECT_DIR"
+          PROJECT_DIR=$(dirname "$PROJECT_DIR")
+
+          echo "Bulunan proje: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: APK oluştur
-        shell: bash
         run: |
           cd "$PROJECT_DIR"
           gradle assembleDebug --stacktrace
@@ -64,5 +63,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WXTRA-APK
-          path: "**/app/build/outputs/apk/debug/*.apk"
+          path: "project/**/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
