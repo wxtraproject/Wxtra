@@ -7,6 +7,9 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
+
 jobs:
   APK:
     runs-on: ubuntu-latest
@@ -21,43 +24,48 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Gradle kur
-        uses: gradle/actions/setup-gradle@v4
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
         with:
-          gradle-version: "8.9"
+          channel: stable
+          cache: true
 
       - name: ZIP'i aç
-        run: |
-          mkdir project
-          unzip -q wxtra.zip -d project
-
-      - name: Gradle projesini bul
         shell: bash
         run: |
-          PROJECT_DIR=$(find project -type f -name "settings.gradle" -print -quit)
+          set -euo pipefail
 
-          if [ -z "$PROJECT_DIR" ]; then
-            PROJECT_DIR=$(find project -type f -name "settings.gradle.kts" -print -quit)
-          fi
+          rm -rf project
+          mkdir -p project
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "HATA: settings.gradle bulunamadı!"
+          unzip -q wxtra.zip -d project
+
+          echo "ZIP içeriği:"
+          find project -maxdepth 4 -type f | sort
+
+      - name: Flutter projesini bul
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PUBSPEC=$(find project -type f -name "pubspec.yaml" -print -quit)
+
+          if [ -z "$PUBSPEC" ]; then
+            echo "HATA: pubspec.yaml bulunamadı!"
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$PROJECT_DIR")
+          PROJECT_DIR=$(dirname "$PUBSPEC")
 
-          echo "Gradle proje klasörü: $PROJECT_DIR"
+          echo "Flutter proje klasörü: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: APK oluştur
+      - name: Android projesini hazırla
+        shell: bash
         run: |
-          cd "$PROJECT_DIR"
-          gradle assembleDebug --stacktrace
+          set -euo pipefail
 
-      - name: APK'yı yükle
-        uses: actions/upload-artifact@v4
-        with:
-          name: WXTRA-APK
-          path: "project/**/app/build/outputs/apk/debug/*.apk"
-          if-no-files-found: error
+          cd "$PROJECT_DIR"
+
+          if [ ! -f "android/settings.gradle" ] &&
+             [ ! -f "android/settings.gradle.kts
