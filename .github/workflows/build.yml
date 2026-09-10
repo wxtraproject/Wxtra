@@ -1,3 +1,74 @@
+name: WXTRA APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  APK:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Projeyi indir
+        uses: actions/checkout@v4
+
+      - name: Java 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: ZIP'i aç
+        shell: bash
+        run: |
+          set -e
+
+          rm -rf project
+          mkdir -p project
+
+          if [ ! -f wxtra.zip ]; then
+            echo "HATA: wxtra.zip bulunamadı!"
+            exit 1
+          fi
+
+          unzip -q wxtra.zip -d project
+
+          echo "ZIP başarıyla açıldı."
+          echo "Dosyalar:"
+          find project -maxdepth 4 -type f | sort
+
+      - name: Flutter projesini bul
+        shell: bash
+        run: |
+          set -e
+
+          PUBSPEC=$(find project -type f -name pubspec.yaml -print -quit)
+
+          if [ -z "$PUBSPEC" ]; then
+            echo "HATA: pubspec.yaml bulunamadı!"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PUBSPEC")
+
+          echo "Flutter proje klasörü:"
+          echo "$PROJECT_DIR"
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Android projesini hazırla
         shell: bash
         run: |
@@ -10,23 +81,80 @@
           else
             echo "Android klasörü yok."
             echo "Flutter Android projesini oluşturuyor..."
-            flutter create --platforms=android --project-name=wxtra .
+
+            flutter create \
+              --platforms=android \
+              --project-name=wxtra \
+              .
           fi
 
           echo "Android projesi kontrol ediliyor..."
 
           if [ -f android/settings.gradle ]; then
             echo "settings.gradle bulundu."
+          elif [ -f android/settings.gradle.kts ]; then
+            echo "settings.gradle.kts bulundu."
           else
-            echo "HATA: android/settings.gradle bulunamadı!"
-            exit 1
-          fi
-
-          if [ -f android/app/build.gradle ]; then
-            echo "Android Gradle yapılandırması bulundu."
-          else
-            echo "HATA: android/app/build.gradle bulunamadı!"
+            echo "HATA: Android settings dosyası bulunamadı!"
             exit 1
           fi
 
           echo "Android projesi hazır."
+
+      - name: Bağımlılıkları kur
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          flutter pub get
+
+      - name: Flutter analiz
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          flutter analyze
+
+      - name: Flutter test
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "Test klasörü bulunamadı, test adımı atlanıyor."
+          fi
+
+      - name: APK oluştur
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          flutter build apk --release
+
+      - name: AAB oluştur
+        working-directory: ${{ env.PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          flutter build appbundle --release
+
+      - name: APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: WXTRA-APK
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: AAB'yi yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: WXTRA-AAB
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
